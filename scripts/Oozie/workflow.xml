@@ -1,0 +1,42 @@
+<!--******************************************-->
+<!--workflow.xml                              -->
+<!--******************************************-->
+<workflow-app name="COVID_WORKFLOW_SCRIPT" xmlns="uri:oozie:workflow:0.2">
+    <start to="sshAction"/>
+    <action name="sshAction">
+        <ssh xmlns="uri:oozie:ssh-action:0.1">
+            <host>${sshNode}</host>
+			<command>${shellScriptPath}</command>
+            <capture-output/>
+        </ssh>
+		<ok to="covid_data_preparation"/>
+		<error to="killAction"/>
+    </action>
+    <kill name="killAction">
+        <message>Action failed, error message[${wf:actionData('sshAction')['STATUS']}] , message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+	<action name="covid_data_preparation">
+    <hive xmlns="uri:oozie:hive-action:0.4">
+      <job-tracker>${jobTracker}</job-tracker>
+      <name-node>${nameNode}</name-node>
+      <prepare>
+        <delete path="${oozieProjectRoot}/output-data/hive"/>
+        <mkdir path="${oozieProjectRoot}/output-data"/>
+      </prepare>
+      <job-xml>${oozieProjectRoot}/hive-site.xml</job-xml>
+      <configuration>
+        <property>
+          <name>oozie.hive.defaults</name>
+          <value>${oozieProjectRoot}/hive-site.xml</value>
+        </property>
+      </configuration>
+      <script>covid_data_preparation.hql</script>
+    </hive>
+	<ok to="end"/>
+		<error to="killAction"/>
+    </action>
+    <kill name="killAction">
+        <message>Action failed, error message[${wf:actionData('covid_data_preparation')['STATUS']}] , message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <end name="end"/>
+</workflow-app>
